@@ -169,15 +169,27 @@ def expenses(request):
                 category = category,
                 user = User.objects.get(id=1),
                 cancel = False,
-                description = description
+                description = description,
+                status = True
             )
-            
-            CashBook.objects.create(
-                amount = amount,
-                expense = expense,
-                credit = True,
-                description=f'Expense ({expense.description[:20]})'
-            )
+            if data.get('debit') == 'True':
+                cashier_expenses_update = CashierExpense.objects.get(id = data.get('expense'))
+                cashier_expenses_update.status = True
+                cashier_expenses_update.save()
+
+                CashBook.objects.create(
+                    amount = amount,
+                    expense = expense,
+                    credit = True,
+                    description=f'Expense ({expense.description[:20]})'
+                )
+            else:
+                CashBook.objects.create(
+                    amount = amount,
+                    expense = expense,
+                    credit = True,
+                    description=f'Expense ({expense.description[:20]})'
+                )
 
             send_expense_creation_notification(expense.id)
             
@@ -452,7 +464,7 @@ def add_expense_category(request):
         ExpenseCategory.objects.create(
             name=category
         )
-        return JsonResponse({'success':True}, status=201)
+        return JsonResponse({'success':True, 'data':list(categories)}, status=201)
     return JsonResponse(list(categories), safe=False)
 
 
@@ -923,6 +935,7 @@ def cashier_expenses(request, cashier_id):
         logger.info(request.user.role)
         if request.user.role in ['manager', 'superviser', 'admin', 'accountant']:
             expenses = CashierExpense.objects.all()
+            expense_category = ExpenseCategory.objects.all()
         else:
             expenses = CashierExpense.objects.filter(cashier__id = cashier_id)
 
@@ -930,6 +943,7 @@ def cashier_expenses(request, cashier_id):
         logger.info(expenses)
         return render(request, 'finance/cashier_expenses.html', {
             'expenses':expenses,
+            'categories': expense_category,
             'total_expenses':total_expenses
         })
     
